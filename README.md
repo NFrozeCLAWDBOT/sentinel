@@ -2,7 +2,7 @@
 
 **Live:** [sentinel.nfroze.co.uk](https://sentinel.nfroze.co.uk)
 
-![Live](screenshots/sentinel.jpg)
+![Live](video/sentinel.gif)
 
 Real-time vulnerability intelligence dashboard that fuses NVD, CISA KEV, and EPSS data into a single composite risk score — replacing the enterprise triage tooling most teams can't afford.
 
