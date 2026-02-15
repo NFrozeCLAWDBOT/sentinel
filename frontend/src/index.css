@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: "Space Grotesk", sans-serif;
+    background-color: #1A1614;
+    color: #F5F0EB;
+    margin: 0;
+    padding: 0;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1A1614;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #4A4040;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5A5050;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(45, 40, 37, 0.6);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(74, 64, 64, 0.3);
+    border-radius: 0.75rem;
+  }
+
+  .glass-strong {
+    background: rgba(45, 40, 37, 0.85);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid rgba(74, 64, 64, 0.4);
+    border-radius: 0.75rem;
+  }
+
+  .glass-hover:hover {
+    background: rgba(59, 52, 50, 0.7);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border-color: rgba(74, 64, 64, 0.5);
+  }
+
+  .severity-border-critical {
+    border-left: 3px solid #DC2626;
+  }
+
+  .severity-border-high {
+    border-left: 3px solid #EA580C;
+  }
+
+  .severity-border-medium {
+    border-left: 3px solid #D97706;
+  }
+
+  .severity-border-low {
+    border-left: 3px solid #44403C;
+  }
+
+  .glow-critical {
+    text-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+  }
+
+  .glow-high {
+    text-shadow: 0 0 20px rgba(234, 88, 12, 0.5);
+  }
+
+  .glow-medium {
+    text-shadow: 0 0 20px rgba(217, 119, 6, 0.5);
+  }
+
+  .glow-low {
+    text-shadow: 0 0 20px rgba(68, 64, 60, 0.5);
+  }
+}
+
+@keyframes pulse-gold {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
+  }
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 2s ease-in-out infinite;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.scroll-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
