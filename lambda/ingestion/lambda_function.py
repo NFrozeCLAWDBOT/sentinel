@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import boto3
+from boto3.dynamodb.conditions import Attr
 import requests
 
 logger = logging.getLogger()
@@ -54,6 +55,15 @@ def handler(event, context):
                 written += 1
 
     logger.info(f"Ingestion complete: {written} CVEs written to DynamoDB")
+
+    # Update pre-computed stats and trends
+    try:
+        update_stats()
+        update_trends()
+        logger.info("Stats and trends records updated")
+    except Exception as e:
+        logger.error(f"Failed to update stats/trends: {e}")
+
     return {"statusCode": 200, "body": f"Processed {written} CVEs"}
 
 
@@ -273,3 +283,87 @@ def build_item(cve_data, kev_lookup, epss_lookup):
         item["kevDueDate"] = kev_data.get("dueDate", "")
 
     return item
+
+
+def update_stats():
+    """Scan all CVEs and write a pre-computed stats record."""
+    now = datetime.now(timezone.utc)
+    seven_days_ago = (now - timedelta(days=7)).isoformat()
+
+    total = 0
+    kev_count = 0
+    epss_sum = 0.0
+    this_week = 0
+
+    scan_kwargs = {"Select": "ALL_ATTRIBUTES"}
+    while True:
+        response = table.scan(**scan_kwargs)
+        for item in response.get("Items", []):
+            if item.get("PK", "").startswith("CVE#"):
+                total += 1
+                if item.get("isKEV"):
+                    kev_count += 1
+                epss_sum += float(item.get("epssScore", 0))
+                if item.get("publishedDate", "") >= seven_days_ago:
+                    this_week += 1
+
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        scan_kwargs["ExclusiveStartKey"] = last_key
+
+    avg_epss = round(epss_sum / total, 5) if total > 0 else 0
+
+    table.put_item(Item={
+        "PK": "STATS#GLOBAL",
+        "SK": "CURRENT",
+        "totalCVEs": total,
+        "kevCount": kev_count,
+        "avgEPSS": Decimal(str(avg_epss)),
+        "cvesThisWeek": this_week,
+        "updatedAt": now.isoformat(),
+    })
+
+
+def update_trends():
+    """Scan KEV items and write a pre-computed monthly trends record."""
+    now = datetime.now(timezone.utc)
+
+    # Generate correct calendar months (no 30-day approximation)
+    months = []
+    for i in range(11, -1, -1):
+        year = now.year
+        month = now.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+        months.append(f"{year:04d}-{month:02d}")
+
+    monthly_counts = {m: 0 for m in months}
+
+    scan_kwargs = {
+        "FilterExpression": Attr("isKEV").eq(True),
+    }
+
+    while True:
+        response = table.scan(**scan_kwargs)
+        for item in response.get("Items", []):
+            date_added = item.get("kevDateAdded", "")
+            if date_added and len(date_added) >= 7:
+                month_key = date_added[:7]
+                if month_key in monthly_counts:
+                    monthly_counts[month_key] += 1
+
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        scan_kwargs["ExclusiveStartKey"] = last_key
+
+    trends = [{"month": m, "count": monthly_counts[m]} for m in months]
+
+    table.put_item(Item={
+        "PK": "STATS#GLOBAL",
+        "SK": "TRENDS",
+        "trends": trends,
+        "updatedAt": now.isoformat(),
+    })

@@ -196,76 +196,34 @@ def handle_top10():
 
 
 def handle_stats():
-    """Dashboard stats: total CVEs, KEV count, avg EPSS, CVEs this week."""
-    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    """Dashboard stats — reads pre-computed record written by ingestion Lambda."""
+    response = table.get_item(Key={"PK": "STATS#GLOBAL", "SK": "CURRENT"})
+    item = response.get("Item")
 
-    total = 0
-    kev_count = 0
-    epss_sum = 0.0
-    this_week = 0
-
-    scan_kwargs = {"Select": "ALL_ATTRIBUTES"}
-    while True:
-        response = table.scan(**scan_kwargs)
-        items = response.get("Items", [])
-
-        for item in items:
-            total += 1
-            if item.get("isKEV"):
-                kev_count += 1
-            epss_sum += float(item.get("epssScore", 0))
-            if item.get("publishedDate", "") >= seven_days_ago:
-                this_week += 1
-
-        last_key = response.get("LastEvaluatedKey")
-        if not last_key:
-            break
-        scan_kwargs["ExclusiveStartKey"] = last_key
-
-    avg_epss = round(epss_sum / total, 5) if total > 0 else 0
+    if not item:
+        return respond(200, {"totalCVEs": 0, "kevCount": 0, "avgEPSS": 0, "cvesThisWeek": 0})
 
     return respond(
         200,
         {
-            "totalCVEs": total,
-            "kevCount": kev_count,
-            "avgEPSS": avg_epss,
-            "cvesThisWeek": this_week,
+            "totalCVEs": int(item.get("totalCVEs", 0)),
+            "kevCount": int(item.get("kevCount", 0)),
+            "avgEPSS": float(item.get("avgEPSS", 0)),
+            "cvesThisWeek": int(item.get("cvesThisWeek", 0)),
         },
     )
 
 
 def handle_trends():
-    """KEV additions over time (monthly counts for past 12 months)."""
-    now = datetime.now(timezone.utc)
-    twelve_months_ago = (now - timedelta(days=365)).strftime("%Y-%m")
+    """KEV additions over time — reads pre-computed record written by ingestion Lambda."""
+    response = table.get_item(Key={"PK": "STATS#GLOBAL", "SK": "TRENDS"})
+    item = response.get("Item")
 
-    monthly_counts = {}
+    if not item:
+        return respond(200, {"trends": []})
 
-    scan_kwargs = {
-        "FilterExpression": Attr("isKEV").eq(True),
-    }
-
-    while True:
-        response = table.scan(**scan_kwargs)
-        items = response.get("Items", [])
-
-        for item in items:
-            date_added = item.get("kevDateAdded", "")
-            if date_added and len(date_added) >= 7:
-                month = date_added[:7]
-                if month >= twelve_months_ago:
-                    monthly_counts[month] = monthly_counts.get(month, 0) + 1
-
-        last_key = response.get("LastEvaluatedKey")
-        if not last_key:
-            break
-        scan_kwargs["ExclusiveStartKey"] = last_key
-
-    trends = []
-    for i in range(12):
-        d = now - timedelta(days=30 * (11 - i))
-        month_key = d.strftime("%Y-%m")
-        trends.append({"month": month_key, "count": monthly_counts.get(month_key, 0)})
+    trends_data = item.get("trends", [])
+    # Convert any Decimal values
+    trends = [{"month": t["month"], "count": int(t["count"])} for t in trends_data]
 
     return respond(200, {"trends": trends})
